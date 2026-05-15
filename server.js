@@ -21,6 +21,11 @@ app.use(cors()); // 교차 출처 리소스 공유 허용
 app.use(express.json()); // JSON 형식의 요청 본문 파싱
 app.use(express.static(path.join(__dirname, 'public'))); // public 폴더의 정적 파일 제공
 
+// 루트 경로(/) 접속 시 메인 페이지 제공
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
 // OpenAI 클라이언트 초기화
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
