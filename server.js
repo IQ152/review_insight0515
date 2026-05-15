@@ -5,6 +5,7 @@
 
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const dotenv = require('dotenv');
 const { OpenAI } = require('openai');
 const supabase = require('./lib/supabase');
@@ -18,7 +19,7 @@ const PORT = process.env.PORT || 3000;
 // 미들웨어 설정
 app.use(cors()); // 교차 출처 리소스 공유 허용
 app.use(express.json()); // JSON 형식의 요청 본문 파싱
-app.use(express.static('public')); // public 폴더의 정적 파일 제공
+app.use(express.static(path.join(__dirname, 'public'))); // public 폴더의 정적 파일 제공
 
 // OpenAI 클라이언트 초기화
 const openai = new OpenAI({
