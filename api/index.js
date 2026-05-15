@@ -1,11 +1,10 @@
 /**
- * AI 감성 분석 서비스 - 메인 서버
- * Node.js, Express, OpenAI API, Supabase 연동
+ * AI 감성 분석 서비스 - API 서버리스 함수
+ * 위치: api/index.js
  */
 
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
 const dotenv = require('dotenv');
 const { OpenAI } = require('openai');
 const supabase = require('../lib/supabase');
@@ -14,17 +13,10 @@ const supabase = require('../lib/supabase');
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
 
 // 미들웨어 설정
-app.use(cors()); // 교차 출처 리소스 공유 허용
-app.use(express.json()); // JSON 형식의 요청 본문 파싱
-app.use(express.static(path.join(__dirname, '..', 'public'))); // public 폴더의 정적 파일 제공
-
-// 루트 경로(/) 접속 시 메인 페이지 제공
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
-});
+app.use(cors());
+app.use(express.json());
 
 // OpenAI 클라이언트 초기화
 const openai = new OpenAI({
@@ -38,23 +30,11 @@ const openai = new OpenAI({
 app.post('/api/analyze', async (req, res) => {
   const { text } = req.body;
 
-  // 1. 입력값 검증 (Server-side Validation)
   if (!text || text.trim().length === 0) {
-    return res.status(400).json({
-      success: false,
-      message: '분석할 텍스트를 입력해주세요.'
-    });
-  }
-
-  if (text.length > 1000) {
-    return res.status(400).json({
-      success: false,
-      message: '텍스트는 최대 1,000자까지 입력할 수 있습니다.'
-    });
+    return res.status(400).json({ success: false, message: '분석할 텍스트를 입력해주세요.' });
   }
 
   try {
-    // 2. OpenAI API 호출 (감성 분석)
     const completion = await openai.chat.completions.create({
       model: "gpt-3.5-turbo",
       messages: [
@@ -81,10 +61,8 @@ reason은 한국어 2~3문장으로 작성하세요.
       response_format: { type: "json_object" }
     });
 
-    // AI 응답 파싱
     const aiResponse = JSON.parse(completion.choices[0].message.content);
     
-    // 화면 표시용 한글 라벨 변환
     const sentimentLabelMap = {
       positive: "긍정",
       negative: "부정",
@@ -92,13 +70,9 @@ reason은 한국어 2~3문장으로 작성하세요.
     };
     const sentimentLabel = sentimentLabelMap[aiResponse.sentiment] || "알 수 없음";
 
-    const finalData = {
-      ...aiResponse,
-      sentimentLabel
-    };
+    const finalData = { ...aiResponse, sentimentLabel };
 
-    // 3. Supabase 데이터베이스 저장 (비동기 처리)
-    // 사용자에게 결과를 빠르게 보여주기 위해 저장은 백그라운드에서 진행하되 에러 로그만 남깁니다.
+    // Supabase 저장 (비동기)
     supabase.from('sentiment_analyses').insert([
       {
         input_text: text,
@@ -108,29 +82,16 @@ reason은 한국어 2~3문장으로 작성하세요.
         reason: aiResponse.reason
       }
     ]).then(({ error }) => {
-      if (error) console.error('Supabase 저장 에러:', error.message);
-      else console.log('데이터 저장 성공');
+      if (error) console.error('DB 저장 에러:', error.message);
     });
 
-    // 4. 성공 응답 반환
-    return res.status(200).json({
-      success: true,
-      data: finalData
-    });
+    return res.status(200).json({ success: true, data: finalData });
 
   } catch (error) {
     console.error('API 에러:', error);
-    return res.status(500).json({
-      success: false,
-      message: '감성 분석 중 서버 문제가 발생했습니다. 잠시 후 다시 시도해주세요.'
-    });
+    return res.status(500).json({ success: false, message: '서버 에러가 발생했습니다.' });
   }
 });
 
-// 서버 실행
-app.listen(PORT, () => {
-  console.log(`서버가 실행되었습니다: http://localhost:${PORT}`);
-});
-
-// Vercel 환경을 위한 익스포트
+// Vercel 서버리스 환경을 위한 익스포트
 module.exports = app;
