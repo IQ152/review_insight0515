@@ -131,3 +131,6 @@ reason은 한국어 2~3문장으로 작성하세요.
 app.listen(PORT, () => {
   console.log(`서버가 실행되었습니다: http://localhost:${PORT}`);
 });
+
+// Vercel 환경을 위한 익스포트
+module.exports = app;
